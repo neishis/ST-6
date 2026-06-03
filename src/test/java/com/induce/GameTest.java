@@ -4,147 +4,172 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 
 public class GameTest {
-
     private Game game;
-    private final ByteArrayOutputStream out = new ByteArrayOutputStream();
 
     @Before
     public void setUp() {
         System.setProperty("java.awt.headless", "true");
         game = new Game();
-        System.setOut(new PrintStream(out));
     }
 
     @Test
-    public void checkStatePlayingEmpty() {
-        game.symbol = 'X';
-        char[] b = new char[9];
-        Arrays.fill(b, ' ');
-        Assert.assertEquals(State.PLAYING, game.checkState(b));
+    public void constructorCreatesEmptyPlayingBoard() {
+        Assert.assertEquals(State.PLAYING, game.state);
+        Assert.assertEquals('X', game.player1.symbol);
+        Assert.assertEquals('O', game.player2.symbol);
+        for (char cell : game.board) {
+            Assert.assertEquals(' ', cell);
+        }
     }
 
     @Test
-    public void checkStateXWinTopRow() {
-        game.symbol = 'X';
-        char[] b = {'X', 'X', 'X', ' ', ' ', ' ', ' ', ' ', ' '};
-        Assert.assertEquals(State.XWIN, game.checkState(b));
+    public void checkStateFindsTopRowXWin() {
+        char[] board = {'X', 'X', 'X', ' ', 'O', ' ', ' ', ' ', 'O'};
+        Assert.assertEquals(State.XWIN, game.checkState(board));
     }
 
     @Test
-    public void checkStateOWinColumn() {
-        game.symbol = 'O';
-        char[] b = {'O', ' ', ' ', 'O', ' ', ' ', 'O', ' ', ' '};
-        Assert.assertEquals(State.OWIN, game.checkState(b));
+    public void checkStateFindsMiddleRowOWin() {
+        char[] board = {'X', ' ', 'X', 'O', 'O', 'O', ' ', ' ', ' '};
+        Assert.assertEquals(State.OWIN, game.checkState(board));
     }
 
     @Test
-    public void checkStateDrawFull() {
-        game.symbol = 'X';
-        char[] b = {'X', 'O', 'X', 'X', 'O', 'O', 'O', 'X', 'X'};
-        Assert.assertEquals(State.DRAW, game.checkState(b));
+    public void checkStateFindsColumnWin() {
+        char[] board = {'O', 'X', ' ', 'O', 'X', ' ', 'O', ' ', 'X'};
+        Assert.assertEquals(State.OWIN, game.checkState(board));
     }
 
     @Test
-    public void checkStateDiagWin() {
-        game.symbol = 'X';
-        char[] b = {'X', ' ', ' ', ' ', 'X', ' ', ' ', ' ', 'X'};
-        Assert.assertEquals(State.XWIN, game.checkState(b));
+    public void checkStateFindsMainDiagonalWin() {
+        char[] board = {'X', 'O', ' ', ' ', 'X', 'O', ' ', ' ', 'X'};
+        Assert.assertEquals(State.XWIN, game.checkState(board));
     }
 
     @Test
-    public void checkStateAntiDiagWin() {
-        game.symbol = 'O';
-        char[] b = {' ', ' ', 'O', ' ', 'O', ' ', 'O', ' ', ' '};
-        Assert.assertEquals(State.OWIN, game.checkState(b));
+    public void checkStateFindsAntiDiagonalWin() {
+        char[] board = {'X', ' ', 'O', 'X', 'O', ' ', 'O', ' ', 'X'};
+        Assert.assertEquals(State.OWIN, game.checkState(board));
     }
 
     @Test
-    public void evaluateXWinForX() {
-        game.symbol = 'X';
-        char[] b = {'X', 'X', 'X', ' ', ' ', ' ', ' ', ' ', ' '};
-        Player p = new Player();
-        p.symbol = 'X';
-        Assert.assertEquals(Game.INF, game.evaluatePosition(b, p));
+    public void checkStateReportsDrawForFullBoardWithoutWinner() {
+        char[] board = {'X', 'O', 'X', 'X', 'O', 'O', 'O', 'X', 'X'};
+        Assert.assertEquals(State.DRAW, game.checkState(board));
     }
 
     @Test
-    public void evaluateXWinForO() {
-        game.symbol = 'X';
-        char[] b = {'X', 'X', 'X', ' ', ' ', ' ', ' ', ' ', ' '};
-        Player p = new Player();
-        p.symbol = 'O';
-        Assert.assertEquals(-Game.INF, game.evaluatePosition(b, p));
+    public void checkStateReportsPlayingWhenMovesRemain() {
+        char[] board = {'X', 'O', 'X', ' ', 'O', ' ', ' ', 'X', ' '};
+        Assert.assertEquals(State.PLAYING, game.checkState(board));
     }
 
     @Test
-    public void evaluateDraw() {
-        game.symbol = 'X';
-        char[] b = {'X', 'O', 'X', 'X', 'O', 'O', 'O', 'X', 'X'};
-        Player p = new Player();
-        p.symbol = 'X';
-        Assert.assertEquals(0, game.evaluatePosition(b, p));
+    public void generateMovesReturnsEmptyCellsInOrder() {
+        char[] board = {'X', ' ', 'O', ' ', 'X', ' ', 'O', ' ', 'X'};
+        ArrayList<Integer> moves = new ArrayList<>();
+
+        game.generateMoves(board, moves);
+
+        Assert.assertEquals(Arrays.asList(1, 3, 5, 7), moves);
     }
 
     @Test
-    public void evaluateNonTerminal() {
-        game.symbol = 'X';
-        char[] b = {'X', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
-        Player p = new Player();
-        p.symbol = 'X';
-        Assert.assertEquals(-1, game.evaluatePosition(b, p));
+    public void generateMovesClearsPreviousContent() {
+        ArrayList<Integer> moves = new ArrayList<>();
+        moves.add(99);
+
+        game.generateMoves(new char[] {'X', 'O', 'X', 'O', 'X', 'O', 'X', 'O', 'X'}, moves);
+
+        Assert.assertTrue(moves.isEmpty());
     }
 
     @Test
-    public void generateMovesListsEmptyCells() {
-        char[] b = {'X', ' ', ' ', ' ', 'O', ' ', ' ', ' ', ' '};
-        ArrayList<Integer> m = new ArrayList<>();
-        game.generateMoves(b, m);
-        Assert.assertEquals(7, m.size());
-        Assert.assertTrue(m.contains(1));
-        Assert.assertFalse(m.contains(0));
+    public void evaluatePositionRewardsOwnWin() {
+        Player player = new Player();
+        player.symbol = 'X';
+        char[] board = {'X', 'X', 'X', ' ', 'O', ' ', ' ', ' ', 'O'};
+
+        Assert.assertEquals(Game.INF, game.evaluatePosition(board, player));
     }
 
     @Test
-    public void minimaxChoosesMoveFromEmpty() {
-        game.symbol = ' ';
-        Arrays.fill(game.board, ' ');
-        game.player1.symbol = 'X';
-        game.player2.symbol = 'O';
-        Player ai = game.player2;
-        int move = game.MiniMax(game.board, ai);
-        Assert.assertTrue(move >= 1 && move <= 9);
+    public void evaluatePositionPenalizesOpponentWin() {
+        Player player = new Player();
+        player.symbol = 'O';
+        char[] board = {'X', 'X', 'X', ' ', 'O', ' ', ' ', ' ', 'O'};
+
+        Assert.assertEquals(-Game.INF, game.evaluatePosition(board, player));
     }
 
     @Test
-    public void minimaxBlocksImmediateWin() {
-        game.symbol = 'X';
-        char[] b = {'X', 'X', ' ', ' ', 'O', ' ', ' ', ' ', ' '};
-        System.arraycopy(b, 0, game.board, 0, 9);
-        game.player2.symbol = 'O';
-        int move = game.MiniMax(game.board, game.player2);
+    public void evaluatePositionReturnsZeroForDraw() {
+        Player player = new Player();
+        player.symbol = 'O';
+        char[] board = {'X', 'O', 'X', 'X', 'O', 'O', 'O', 'X', 'X'};
+
+        Assert.assertEquals(0, game.evaluatePosition(board, player));
+    }
+
+    @Test
+    public void evaluatePositionReturnsMinusOneForUnfinishedGame() {
+        Player player = new Player();
+        player.symbol = 'X';
+        char[] board = {'X', ' ', ' ', ' ', 'O', ' ', ' ', ' ', ' '};
+
+        Assert.assertEquals(-1, game.evaluatePosition(board, player));
+    }
+
+    @Test
+    public void minimaxTakesImmediateWinningMove() {
+        char[] board = {'O', 'O', ' ', 'X', 'X', ' ', ' ', ' ', ' '};
+        int move = game.MiniMax(board, game.player2);
+
         Assert.assertEquals(3, move);
     }
 
     @Test
-    public void minimaxFromNearEnd() {
-        game.symbol = 'X';
-        char[] b = {'X', 'O', 'X', 'O', 'X', ' ', 'O', 'X', 'O'};
-        System.arraycopy(b, 0, game.board, 0, 9);
-        game.player2.symbol = 'O';
-        int move = game.MiniMax(game.board, game.player2);
+    public void minimaxBlocksOpponentImmediateWin() {
+        char[] board = {'X', 'X', ' ', ' ', 'O', ' ', ' ', ' ', ' '};
+        int move = game.MiniMax(board, game.player2);
+
+        Assert.assertEquals(3, move);
+    }
+
+    @Test
+    public void minimaxUsesLastAvailableCell() {
+        char[] board = {'X', 'O', 'X', 'O', 'X', ' ', 'O', 'X', 'O'};
+        int move = game.MiniMax(board, game.player2);
+
         Assert.assertEquals(6, move);
     }
 
     @Test
-    public void playerDefaults() {
-        Player p = new Player();
-        Assert.assertFalse(p.selected);
-        Assert.assertFalse(p.win);
+    public void minimaxReturnsZeroForFullBoard() {
+        char[] board = {'X', 'O', 'X', 'X', 'O', 'O', 'O', 'X', 'X'};
+        Assert.assertEquals(0, game.MiniMax(board, game.player2));
+    }
+
+    @Test
+    public void minMoveSeesOpponentWinAsBad() {
+        char[] board = {'X', 'X', 'X', ' ', 'O', ' ', ' ', ' ', 'O'};
+        Assert.assertTrue(game.MinMove(board, game.player2) < 0);
+    }
+
+    @Test
+    public void maxMoveSeesOwnWinAsGood() {
+        char[] board = {'O', 'O', 'O', 'X', 'X', ' ', ' ', ' ', ' '};
+        Assert.assertTrue(game.MaxMove(board, game.player2) > 0);
+    }
+
+    @Test
+    public void playerDefaultFlagsAreFalse() {
+        Player player = new Player();
+        Assert.assertFalse(player.selected);
+        Assert.assertFalse(player.win);
     }
 }

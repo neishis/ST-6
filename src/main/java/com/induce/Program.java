@@ -1,336 +1,320 @@
-package com.induce;// Реализация игры "Крестики-нолики" (3x3)
-// Минимаксный алгоритм
+package com.induce;
 
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.ArrayList;
-import java.util.Random;
-import java.io.FileWriter;
-import java.io.PrintWriter;
-import java.io.IOException;
+import java.util.Arrays;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 
-enum State { PLAYING, OWIN, XWIN, DRAW };
-
+enum State { PLAYING, OWIN, XWIN, DRAW }
 
 class Player {
-  public char symbol;
-  public int move;
-  public boolean selected;
-  public boolean win;
+    public char symbol;
+    public int move;
+    public boolean selected;
+    public boolean win;
 }
 
 class Game {
-    public State state;
-    public Player player1, player2;
-    public Player cplayer; // текущий игрок
-    public int nmove;  // последний шаг сделанный действующим игроком 
-    public char symbol;
     public static final int INF = 100;
+    private static final int[][] LINES = {
+        {0, 1, 2}, {3, 4, 5}, {6, 7, 8},
+        {0, 3, 6}, {1, 4, 7}, {2, 5, 8},
+        {0, 4, 8}, {2, 4, 6}
+    };
+
+    public State state;
+    public Player player1;
+    public Player player2;
+    public Player cplayer;
+    public int nmove;
+    public char symbol;
     public int q;
     public char[] board;
 
-
     public Game() {
-      player1=new Player();
-      player2=new Player();
-      player1.symbol='X';
-      player2.symbol='O';
-      state=State.PLAYING; 
-      board=new char[9];   // текущая доска в игре  
-      for(int i=0;i<9;i++)
-        board[i]=' ';
+        player1 = new Player();
+        player2 = new Player();
+        player1.symbol = 'X';
+        player2.symbol = 'O';
+        cplayer = player1;
+        state = State.PLAYING;
+        board = new char[9];
+        Arrays.fill(board, ' ');
     }
 
-    // возвращаем состояние игры
-    public State checkState(char[] board) 
-    {
-      //char symbol=game.symbol;//cplayer.symbol;
-      State state=State.PLAYING;
-      if ((board[0] == symbol && board[1] == symbol && board[2] == symbol) ||
-          (board[3] == symbol && board[4] == symbol && board[5] == symbol) ||
-          (board[6] == symbol && board[7] == symbol && board[8] == symbol) ||
-          (board[0] == symbol && board[3] == symbol && board[6] == symbol) ||
-          (board[1] == symbol && board[4] == symbol && board[7] == symbol) ||
-          (board[2] == symbol && board[5] == symbol && board[8] == symbol) ||
-          (board[0] == symbol && board[4] == symbol && board[8] == symbol) ||
-          (board[2] == symbol && board[4] == symbol && board[6] == symbol)) 
-      {
-        if (symbol == 'X')   
-            state = State.XWIN;
-        else if (symbol == 'O')  
-            state = State.OWIN;
-      }
-      else {
-        state = State.DRAW;
-        for (int i = 0; i < 9; i++) 
-        {
-            if (board[i] == ' ') {
-                state = State.PLAYING;
-                break;
+    public State checkState(char[] position) {
+        for (int[] line : LINES) {
+            char owner = position[line[0]];
+            if (owner != ' ' && owner == position[line[1]]
+                    && owner == position[line[2]]) {
+                return owner == 'X' ? State.XWIN : State.OWIN;
+            }
+        }
+
+        return hasEmptyCell(position) ? State.PLAYING : State.DRAW;
+    }
+
+    void generateMoves(char[] position, ArrayList<Integer> moveList) {
+        moveList.clear();
+        for (int cell = 0; cell < position.length; cell++) {
+            if (position[cell] == ' ') {
+                moveList.add(cell);
             }
         }
     }
-    return state;
-  }
-     // сгенерировать возможные ходы
-   void generateMoves(char[] board, ArrayList<Integer> move_list) {
-    for (int i = 0; i < 9; i++) 
-        if (board[i] == ' ') 
-            move_list.add(i);
-   }
 
-   // оценка позиции
-   int evaluatePosition(char[] board, Player player)  
-   {
-    State state=checkState(board);
-    if ((state == State.XWIN || state == State.OWIN || state == State.DRAW)) 
-    {
-        if ((state == State.XWIN && player.symbol == 'X') || (state == State.OWIN && player.symbol == 'O')) 
-            return +Game.INF;
-        else if ((state == State.XWIN && player.symbol == 'O') || (state == State.OWIN && player.symbol == 'X')) 
-            return -Game.INF;
-        else if (state == State.DRAW) 
+    int evaluatePosition(char[] position, Player player) {
+        State checked = checkState(position);
+        if (checked == State.DRAW) {
             return 0;
-    }
-    return -1;
-   }
-
-   int MiniMax(char[] board, Player player) // выбор наилучшего хода
-   {
-    int best_val = -Game.INF, index = 0;
-    ArrayList<Integer> move_list=new ArrayList<>();
-    int[] best_moves = new int[9];
- 
-    generateMoves(board, move_list); 
-
-    while (move_list.size()!=0) { 
-        board[move_list.get(0)] = player.symbol; 
-        symbol = player.symbol;
- 
-       
-        int val = MinMove(board, player); 
-       
-
-        if (val > best_val) { 
-            best_val = val;
-            index = 0;
-            best_moves[index] = move_list.get(0)+1; 
         }
-        else if (val == best_val)
-            best_moves[++index] = move_list.get(0)+1; 
- 
-        System.out.printf("\nminimax: %3d(%1d) ", 1 + move_list.get(0), val);
-        board[move_list.get(0)] = ' '; 
-        move_list.remove(0);
-    }
-    if (index > 0)  {
-      Random r = new Random();
-      index = r.nextInt(index);
-    }
-   
-    System.out.printf("\nminimax best: %3d(%1d) ", best_moves[index], best_val);
-    System.out.printf("Steps counted: %d", q);
-    q = 0;
-    return best_moves[index];
-  }
-  
-  int MinMove(char[] board, Player player)  {
-
-    int pos_value = evaluatePosition(board, player); 
-    if (pos_value != -1) 
-      return pos_value;
-    q++;
-    int best_val = +Game.INF;
-    ArrayList<Integer> move_list=new ArrayList<>();
-    
-    generateMoves(board, move_list); 
-
-    while (move_list.size()!=0) { 
-        symbol= (player.symbol == 'X') ? 'O' : 'X'; 
-        board[move_list.get(0)] = symbol; 
-
-        int val = MaxMove(board, player); 
-        
-        if (val < best_val) {
-            best_val = val;  
+        if (checked == State.PLAYING) {
+            return -1;
         }
-        board[move_list.get(0)] = ' ';
-        move_list.remove(0);
-    }
-    return best_val;
-  }
 
-  int MaxMove(char[] board, Player player) {
-    int pos_value = evaluatePosition(board, player);
-    if (pos_value != -1) 
-      return pos_value;
-    q++;
-    int best_val = -Game.INF;
-    ArrayList<Integer> move_list=new ArrayList<>();
-    generateMoves(board, move_list);
-    while (move_list.size()!=0) {
-        symbol=(player.symbol == 'X') ? 'X' : 'O'; 
-        board[move_list.get(0)] = symbol;
-        int val = MinMove(board, player);
-        if (val > best_val) {
-            best_val = val;
-        }
-        board[move_list.get(0)] = ' ';
-        move_list.remove(0);
+        char winner = checked == State.XWIN ? 'X' : 'O';
+        return winner == player.symbol ? INF : -INF;
     }
-    return best_val;
-  }
+
+    int MiniMax(char[] position, Player player) {
+        ArrayList<Integer> moves = new ArrayList<>();
+        generateMoves(position, moves);
+        if (moves.isEmpty()) {
+            return 0;
+        }
+
+        int bestMove = moves.get(0);
+        int bestScore = -INF * 10;
+        q = 0;
+
+        for (int move : moves) {
+            position[move] = player.symbol;
+            int score = minimax(position, opposite(player.symbol), player.symbol, 1);
+            position[move] = ' ';
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = move;
+            }
+        }
+
+        return bestMove + 1;
+    }
+
+    int MinMove(char[] position, Player player) {
+        return minimax(position, opposite(player.symbol), player.symbol, 0);
+    }
+
+    int MaxMove(char[] position, Player player) {
+        return minimax(position, player.symbol, player.symbol, 0);
+    }
+
+    private int minimax(char[] position, char turn, char maximizer, int depth) {
+        q++;
+        State checked = checkState(position);
+        if (checked != State.PLAYING) {
+            return terminalScore(checked, maximizer, depth);
+        }
+
+        boolean maximize = turn == maximizer;
+        int best = maximize ? -INF * 10 : INF * 10;
+
+        for (int cell = 0; cell < position.length; cell++) {
+            if (position[cell] != ' ') {
+                continue;
+            }
+
+            position[cell] = turn;
+            int score = minimax(position, opposite(turn), maximizer, depth + 1);
+            position[cell] = ' ';
+            best = maximize ? Math.max(best, score) : Math.min(best, score);
+        }
+
+        return best;
+    }
+
+    private int terminalScore(State checked, char maximizer, int depth) {
+        if (checked == State.DRAW) {
+            return 0;
+        }
+
+        char winner = checked == State.XWIN ? 'X' : 'O';
+        return winner == maximizer ? INF - depth : depth - INF;
+    }
+
+    private boolean hasEmptyCell(char[] position) {
+        for (char cell : position) {
+            if (cell == ' ') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private char opposite(char marker) {
+        return marker == 'X' ? 'O' : 'X';
+    }
 }
 
 public class Program {
-
-    public static FileWriter fileWriter;
-    public static PrintWriter printWriter;
-    public static void main(String[] args) throws IOException {
-       JFrame frame = new JFrame("Demo");
-       frame.add(new TicTacToePanel(new GridLayout(3,3)));
-       frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-       frame.setBounds(5, 5, 500, 500);
-       frame.setVisible(true);
+    public static void main(String[] args) {
+        JFrame frame = new JFrame("Tic Tac Toe");
+        frame.add(new TicTacToePanel(new GridLayout(3, 3)));
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setBounds(5, 5, 500, 500);
+        frame.setVisible(true);
     }
 }
 
 class TicTacToeCell extends JButton {
-    private boolean isFill;
-    private int num;
-    private int row;
-    private int col;
+    private final int num;
+    private final int row;
+    private final int col;
     private char marker;
 
-    public TicTacToeCell(int num,int x,int y) {
-        this.num=num;
-        row=y;
-        col=x;
-        marker=' ';
+    TicTacToeCell(int num, int x, int y) {
+        this.num = num;
+        this.row = y;
+        this.col = x;
+        this.marker = ' ';
         setText(Character.toString(marker));
         setFont(new Font("Arial", Font.PLAIN, 40));
     }
-    public void setMarker(String m) {
-        marker=m.charAt(0);
-        setText(m);
+
+    public void setMarker(String markerText) {
+        marker = markerText.charAt(0);
+        setText(markerText);
         setEnabled(false);
     }
+
     public char getMarker() {
         return marker;
     }
+
     public int getRow() {
         return row;
     }
+
     public int getCol() {
         return col;
     }
+
     public int getNum() {
         return num;
     }
-
 }
 
 class Utility {
+    public static void print(char[] board) {
+        printLine(toObjects(board));
+    }
 
-  public static void print(char[] board) {
-    System.out.println();
-        for(int j=0;j<9;j++)
-          System.out.print(board[j]+"-");
+    public static void print(int[] board) {
+        printLine(toObjects(board));
+    }
+
+    public static void print(ArrayList<Integer> moves) {
+        printLine(moves.toArray());
+    }
+
+    private static Object[] toObjects(char[] values) {
+        Object[] result = new Object[values.length];
+        for (int i = 0; i < values.length; i++) {
+            result[i] = values[i];
+        }
+        return result;
+    }
+
+    private static Object[] toObjects(int[] values) {
+        Object[] result = new Object[values.length];
+        for (int i = 0; i < values.length; i++) {
+            result[i] = values[i];
+        }
+        return result;
+    }
+
+    private static void printLine(Object[] values) {
         System.out.println();
-  }
-  public static void print(int[] board) {
-    System.out.println();
-        for(int j=0;j<9;j++)
-          System.out.print(board[j]+"-");
+        for (Object value : values) {
+            System.out.print(value + "-");
+        }
         System.out.println();
-  }  
-  public static void print(ArrayList<Integer> moves) {
-    System.out.println();
-        for(int j=0;j<moves.size();j++)
-          System.out.print(moves.get(j)+"-");
-        System.out.println();
-  }  
+    }
 }
 
 class TicTacToePanel extends JPanel implements ActionListener {
+    private Game game;
+    private TicTacToeCell[] cells = new TicTacToeCell[9];
 
-   private Game game;
+    TicTacToePanel(GridLayout layout) {
+        super(layout);
+        createBoard();
+        game = new Game();
+    }
 
-   private void createCell(int num,int x,int y) {
-       cells[num]=new TicTacToeCell(num,x,y);
-       cells[num].addActionListener(this);
-       add(cells[num]);
+    private void createBoard() {
+        for (int cell = 0; cell < cells.length; cell++) {
+            createCell(cell, cell % 3, cell / 3);
+        }
+    }
 
-   }
+    private void createCell(int num, int x, int y) {
+        cells[num] = new TicTacToeCell(num, x, y);
+        cells[num].addActionListener(this);
+        add(cells[num]);
+    }
 
-   private TicTacToeCell[] cells = new TicTacToeCell[9];
-   TicTacToePanel(GridLayout layout) {
-       super(layout);
-       createCell(0,0,0);
-       createCell(1,1,0);
-       createCell(2,2,0);
-       createCell(3,0,1);
-       createCell(4,1,1);
-       createCell(5,2,1);
-       createCell(6,0,2);
-       createCell(7,1,2); 
-       createCell(8,2,2);
-       game=new Game();
-       game.cplayer=game.player1;
-   }
+    public void actionPerformed(ActionEvent event) {
+        TicTacToeCell cell = (TicTacToeCell) event.getSource();
+        if (cell.getMarker() != ' ' || game.state != State.PLAYING) {
+            return;
+        }
 
-   public void actionPerformed(ActionEvent ae) {
-      game.player1.move = -1;
-      game.player2.move = -1;
-      //System.out.println(game.cplayer.symbol);
-      //System.out.println(((TicTacToeCell)(ae.getSource())).getNum());
+        markCell(cell, game.player1.symbol);
+        game.state = game.checkState(game.board);
 
+        if (game.state == State.PLAYING) {
+            int aiMove = game.MiniMax(game.board, game.player2);
+            if (aiMove > 0) {
+                game.nmove = aiMove;
+                markCell(cells[aiMove - 1], game.player2.symbol);
+                game.state = game.checkState(game.board);
+            }
+        }
 
-      int i=0;
-      for(TicTacToeCell jb: cells) {
-         if(ae.getSource()==jb) {
-            jb.setMarker(Character.toString(game.cplayer.symbol));
-         }
-         game.board[i++]=jb.getMarker();
-      }
-      if(game.cplayer==game.player1) {
+        if (game.state != State.PLAYING) {
+            finishGame(game.state);
+        }
+    }
 
-         game.player2.move = game.MiniMax(game.board, game.player2);
-         game.nmove = game.player2.move;
-         game.symbol = game.player2.symbol;
-         game.cplayer = game.player2;
-         if(game.player2.move>0)
-            cells[game.player2.move-1].doClick();
-       }
-       else
-       {
-         game.nmove = game.player1.move;
-         game.symbol = game.player1.symbol;
-         game.cplayer = game.player1;
-       }
+    protected void finishGame(State finalState) {
+        String message;
+        switch (finalState) {
+            case XWIN:
+                message = "Выиграли крестики";
+                break;
+            case OWIN:
+                message = "Выиграли нолики";
+                break;
+            case DRAW:
+                message = "Ничья";
+                break;
+            default:
+                message = "Игра продолжается";
+                break;
+        }
+        JOptionPane.showMessageDialog(null, message, "Результат",
+                JOptionPane.WARNING_MESSAGE);
+    }
 
-      game.state=game.checkState(game.board);
-
-
-      if(game.state==State.XWIN) {
-        JOptionPane.showMessageDialog(null,"Выиграли крестики","Результат", JOptionPane.WARNING_MESSAGE);
-        System.exit(0);
-
-      }
-      else if(game.state==State.OWIN) {
-        JOptionPane.showMessageDialog(null,"Выиграли нолики","Результат", JOptionPane.WARNING_MESSAGE);
-        System.exit(0);
-      }
-      else if(game.state==State.DRAW) {
-        JOptionPane.showMessageDialog(null,"Ничья","Результат", JOptionPane.WARNING_MESSAGE);
-        System.exit(0);
-      } 
-
-
-
-
-   }
+    private void markCell(TicTacToeCell cell, char marker) {
+        cell.setMarker(Character.toString(marker));
+        game.board[cell.getNum()] = marker;
+    }
 }
-
-
