@@ -1,0 +1,16 @@
+target/
+*.jar
+!jacoco-agent.jar
+*.war
+*.ear
+*.class
+
+.idea/
+*.iml
+.vscode/
+*.project
+*.classpath
+*.settings/
+
+.DS_Store
+Thumbs.db
